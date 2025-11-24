@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vinheta Criativa - Humor</title>
+    <style>
+        /* (mantive seu estilo original - só acrescentei o CSS necessário para a animação de digitação) */
+        
+         :root {
+            --accent-1: #320be0;
+            --accent-2: #11aad8;
+            --glass: rgba(11, 8, 184, 0.06);
+            --glass-2: rgba(49, 29, 231, 0.08);
+            --text: #e7d916;
+        }
+        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: #000;
+            font-family: "Montserrat", "Segoe UI", Roboto, Arial, sans-serif;
+            overflow: hidden
+        }
+        
+        #screen {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: stretch;
+            justify-content: space-between;
+            background: linear-gradient(180deg, #e903e9 0%, #000 100%)
+        }
+        
+        .media-wrap {
+            position: relative;
+            flex: 1 1 auto;
+            overflow: hidden
+        }
+        
+        .media-wrap video,
+        .media-wrap img.fallback {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transform: scale(1.02);
+            filter: saturate(0.98) contrast(1.02)
+        }
+        
+        .media-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.45));
+            pointer-events: none;
+            mix-blend-mode: multiply
+        }
+        
+        .media-wrap::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(60% 60% at 25% 40%, rgba(255, 255, 255, 0.02), transparent 15%), linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.35));
+            pointer-events: none;
+            mix-blend-mode: overlay
+        }
+        
+        .sidebar {
+            width: 14.5%;
+            min-width: 120px;
+            max-width: 240px;
+            background: linear-gradient(180deg, rgba(13, 27, 214, 0.02), rgba(18, 79, 211, 0.03));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 10;
+            border-top-left-radius: 18px;
+            border-bottom-left-radius: 18px;
+            box-shadow: -18px 8px 40px rgba(0, 0, 0, 0.6), -6px 2px 12px rgba(0, 0, 0, 0.45);
+            overflow: visible;
+            padding: 18px 12px;
+            border-left: 8px solid rgba(0, 0, 0, 0.12)
+        }
+        
+        .sidebar .stripe {
+            position: absolute;
+            left: 0;
+            top: 8%;
+            bottom: 8%;
+            width: 36px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            background: linear-gradient(180deg, var(--accent-2), #c6e300 80%);
+            box-shadow: inset 0 3px 8px rgba(255, 255, 255, 0.05), 6px 0 18px rgba(0, 0, 0, 0.45)
+        }
+        
+        .label {
+            position: absolute;
+            right: 36px;
+            transform-origin: center;
+            transform: rotate(-90deg) translateY(-10%);
+            color: var(--accent-1);
+            font-weight: 700;
+            letter-spacing: 2px;
+            font-size: 1.05rem;
+            text-shadow: 0 2px 0 rgba(255, 255, 255, 0.03);
+            z-index: 12
+        }
+        
+        .medal {
+            width: 150px;
+            /* ajuste o tamanho que quiser */
+            height: 150px;
+            border-radius: 50%;
+            background: #d4ff00;
+            /* o círculo atrás */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            /* garante que nada vaze do círculo */
+        }
+        
+        .medal img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* faz preencher tudo */
+        }
+        
+        @keyframes floaty {
+            0% {
+                transform: translateY(-3px) rotate(-1deg)
+            }
+            50% {
+                transform: translateY(6px) rotate(1deg)
+            }
+            100% {
+                transform: translateY(-3px) rotate(-1deg)
+            }
+        }
+        
+        .sidebar .watermark {
+            position: absolute;
+            left: 12%;
+            top: 50%;
+            width: 80%;
+            height: 80%;
+            background-image: url('/mnt/data/fe978aaa-79a6-4315-a3d4-75ae31a58321.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.06;
+            transform: translateY(-50%);
+            filter: blur(0.3px) saturate(0.6);
+            z-index: 2;
+            pointer-events: none
+        }
+        
+        .titleWrap {
+            position: absolute;
+            left: 6%;
+            bottom: 18%;
+            z-index: 6;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            pointer-events: none
+        }
+        
+        .title {
+            font-size: clamp(28px, 6vw, 82px);
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.02);
+            transform-origin: left
+        }
+        
+        .ribbon {
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(6px) saturate(120%);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5)
+        }
+        
+        .scan {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px);
+            mix-blend-mode: overlay;
+            opacity: 0.6;
+            animation: scanMove 6s linear infinite;
+            z-index: 8
+        }
+        
+        @keyframes scanMove {
+            from {
+                transform: translateY(-20%)
+            }
+            to {
+                transform: translateY(20%)
+            }
+        }
+        /* VINHETA */
+        
+        #vinheta {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 30% 40%, #12c0f5 0%, #176dcf 20%, #0d0044 60%, #2a004d 100%);
+            color: white;
+            overflow: hidden
+        }
+        
+        #vinheta .logo {
+            font-weight: 900;
+            font-size: 6vw;
+            letter-spacing: 0.18em;
+            transform-origin: center;
+            text-transform: uppercase;
+            color: var(--text);
+            text-shadow: 0 10px 40px rgba(91, 11, 116, 0.45), 0 2px 8px rgba(0, 0, 0, 0.7);
+            animation: vinIn 1s cubic-bezier(.2, .9, .2, 1) forwards, vinGlow 2.6s infinite;
+        }
+        /* --- typing animation CSS (adicionado) --- */
+        /* cada caractere será um inline-block para animar individualmente */
+        
+        #vinheta .logo .char {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(8px) scale(1);
+            transition: transform 360ms cubic-bezier(.2, .9, .2, 1), opacity 360ms ease;
+            will-change: transform, opacity;
+        }
+        
+        #vinheta .logo .char.in {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        /* vinheta keyframes (mantidos) */
+        
+        @keyframes vinIn {
+            0% {
+                transform: scale(1.6) rotateX(15deg);
+                opacity: 0;
+                filter: blur(12px)
+            }
+            60% {
+                transform: scale(0.95) rotateX(0);
+                opacity: 1;
+                filter: blur(0px)
+            }
+            100% {
+                transform: scale(1) rotateX(0);
+                opacity: 1
+            }
+        }
+        
+        @keyframes vinGlow {
+            0% {
+                text-shadow: 0 6px 18px rgba(215, 255, 0, 0.08);
+                transform: translateY(0)
+            }
+            50% {
+                text-shadow: 0 18px 60px rgba(215, 255, 0, 0.18);
+                transform: translateY(-3px)
+            }
+            100% {
+                text-shadow: 0 6px 18px rgba(215, 255, 0, 0.08);
+                transform: translateY(0)
+            }
+        }
+        
+        .vinhetaOut {
+            animation: vinOut 700ms ease forwards
+        }
+        
+        @keyframes vinOut {
+            0% {
+                opacity: 1;
+                transform: scale(1)
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.6) rotateX(10deg);
+                filter: blur(14px);
+                pointer-events: none
+            }
+        }
+        
+        @media(max-width:880px) {
+            .sidebar {
+                width: 18%
+            }
+            .medal {
+                width: 76px;
+                height: 76px;
+                margin-top: -38px;
+                right: -28px
+            }
+            .label {
+                font-size: 0.9rem;
+                right: 28px;
+                transform: rotate(-90deg) translateY(-2%)
+            }
+            .titleWrap {
+                left: 4%;
+                bottom: 14%
+            }
+        }
+        
+        @media(max-width:520px) {
+            .sidebar {
+                display: none
+            }
+            .titleWrap {
+                left: 6%;
+                bottom: 12%
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Vinheta inicial - atributo custom Futura Bold foi mantido como no seu HTML original -->
+    <div id="vinheta" Futura Bold="true" aria-hidden="true">
+        <!-- o texto "Incrível" será transformado em spans pela JS para aparecer letra por letra -->
+        <div class="logo" role="img" aria-label="Vinheta Incrível">Engraçados</div>
+    </div>
+
+    <div id="screen">
+        <div class="media-wrap">
+            <!-- use video ou imagem fallback -->
+            <video id="v" autoplay muted playsinline loop preload="auto">
+        <!-- se tiver um vídeo online, troque a src -->
+        <source src="" type="video/mp4">
+      </video>
+            <!-- fallback do screenshot/preview se o vídeo não existir -->
+            <img class="fallback" src="/mnt/data/056103c5-33b4-4f97-9b78-6c61210b8597.png" alt="fallback">
+
+            <!-- big title sobre o vídeo -->
+            <div class="titleWrap">
+                <div class="ribbon">
+                    <div class="title">Humor</div>
+                </div>
+            </div>
+
+            <div class="scan" aria-hidden="true"></div>
+        </div>
+
+        <aside class="sidebar" aria-hidden="true">
+            <div class="stripe" aria-hidden="true"></div>
+            <div class="watermark" aria-hidden="true"></div>
+
+            <!-- medalhão do emoji -->
+            <div class="medal" aria-hidden="true">
+                <img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif" alt="😂" width="32" height="32">
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // typing effect: transforma o texto da .logo em spans e aplica reveal letra a letra
+        (function() {
+            const logo = document.querySelector('#vinheta .logo');
+            if (!logo) return;
+
+            // captura texto original e limpa
+            const text = logo.textContent.trim();
+            logo.textContent = '';
+
+            // divide em caracteres seguros (spread geralmente ok para acentos simples)
+            // para clusters complexos você poderia usar Intl.Segmenter (não necessário aqui)
+            const chars = [...text];
+
+            // cria spans
+            chars.forEach((ch, i) => {
+                const span = document.createElement('span');
+                span.className = 'char';
+                // preservar espaços visuais (não colapsar)
+                if (ch === ' ') {
+                    span.innerHTML = '&nbsp;';
+                } else {
+                    span.textContent = ch;
+                }
+                logo.appendChild(span);
+            });
+
+            // animação: revele cada span da esquerda para direita
+            const spans = Array.from(logo.querySelectorAll('.char'));
+            const baseDelay = 60; // ms entre caracteres
+            const initialDelay = 120; // espera antes de começar (ms)
+
+            spans.forEach((s, idx) => {
+                const delay = initialDelay + idx * baseDelay;
+                setTimeout(() => {
+                    s.classList.add('in');
+                }, delay);
+            });
+
+            // opcional: se quiser garantir que a vinheta só suma após a digitação terminar,
+            // podemos ajustar o tempo de remoção. Como no seu script original a vinheta some
+            // depois de 3000ms, vamos manter isso, mas você pode aumentar se quiser.
+        })();
+
+        /* seu script de playlist e vinheta (mantive comportamento original de remover vinheta após 3s) */
+        const playlist = [
+            "https://media.gettyimages.com/id/1490629202/pt/v%C3%ADdeo/epic-fail-of-a-girl-sitting-on-a-skateboard-skating-downhill-and-wipes-out-at-the-end-video.mp4?s=mp4-640x640-gi&k=20&c=3vT17EDxU8wYo4htngPEP8ctZtFMbsd8VhJhgx64-LQ=",
+            "https:/www.pexels.com/download/video/6002473.mp4",
+            "https://www.pexels.com/download/video/5039490/",
+            "https://media.gettyimages.com/id/1478375183/pt/v%C3%ADdeo/shirtless-guy-wearing-black-shorts-tries-to-jump-into-pool-by-diving-from-ladder-but-it.mp4?s=mp4-640x640-gi&k=20&c=EAjP_yYvBNJwzsmauovEfbRYag7wITZOjQ1ODx5Ayoc=",
+            "https://media.gettyimages.com/id/1424280922/pt/v%C3%ADdeo/this-is-what-happens-when-you-dont-pay-attention-to-whats-happening-in-front-of-you-epic-fail.mp4?s=mp4-640x640-gi&k=20&c=nEF4w8p9x8lKgvDTV00CSBMUPS-vpGhXuvAt7bpjAZg=",
+            "https://media.gettyimages.com/id/1401338352/pt/v%C3%ADdeo/check-out-this-super-funny-video-of-a-woman-falling-right-into-the-water-after-failing-to-sit.mp4?s=mp4-640x640-gi&k=20&c=wVjXpnLpaiyUOAO0WhqJ_qgSnuoEQNY1ysi8zQTI82o=",
+            "https://media.gettyimages.com/id/1469296576/pt/v%C3%ADdeo/girl-wearing-a-black-jacket-tries-to-run-and-jump-over-the-creek-but-she-doesnt-jump-far.mp4?s=mp4-640x640-gi&k=20&c=bScECcVBVzlWhGXVyW6dtL1hHreLVGYmnfUs9pv0FWI=",
+            "https://media.gettyimages.com/id/1471888630/pt/v%C3%ADdeo/when-this-kid-tries-out-his-new-present-he-ends-up-getting-bodied-by-a-tree-epic-fail.mp4?s=mp4-640x640-gi&k=20&c=7e5MUpokUHNpqexzii7Cq1VAwPViuIQfk_OFrzmRP8M=",
+
+        ];
+
+        function dayOfYear(d = new Date()) {
+            const start = new Date(d.getFullYear(), 0, 0);
+            return Math.floor((d - start) / (1000 * 60 * 60 * 24));
+        }
+
+        function loadDailyItem() {
+            const dia = dayOfYear();
+            const idx = playlist.length ? (dia % playlist.length) : 0;
+            const fonte = playlist[idx];
+
+            const player = document.getElementById('v');
+            // limpa fontes anteriores
+            player.innerHTML = '';
+
+            const existingImg = document.querySelector('.media-wrap img.fallback');
+            if (existingImg) existingImg.remove();
+
+            function isMp4(url) {
+                return /\.mp4(\?.*)?$/i.test(url);
+            }
+
+            if (isMp4(fonte)) {
+                const src = document.createElement('source');
+                src.src = fonte;
+                src.type = "video/mp4";
+                player.appendChild(src);
+
+                // garante que o vídeo esteja visível
+                player.style.display = '';
+                player.play().catch(err => console.warn("Falha no autoplay:", err));
+            } else {
+                player.style.display = "none";
+                const img = document.createElement("img");
+                img.className = "fallback";
+                img.src = fonte;
+                document.querySelector('.media-wrap').appendChild(img);
+            }
+        }
+
+        // CARREGA O VÍDEO NORMALMENTE ao carregar a página
+        window.addEventListener("load", () => {
+            loadDailyItem();
+
+            // VINHETA: usa comportamento de saída (remove depois de 3s + 1s)
+            const v = document.getElementById('vinheta');
+            setTimeout(() => {
+                v.classList.add('vinhetaOut');
+                setTimeout(() => v.remove(), 1000); // remove da tela após animação
+            }, 3000);
+        });
+
+        // Parallax sutil ao mover o mouse (mantido)
+        const media = document.querySelector('.media-wrap');
+        document.addEventListener('mousemove', (e) => {
+            const w = window.innerWidth,
+                h = window.innerHeight;
+            const nx = (e.clientX - w / 2) / w;
+            const ny = (e.clientY - h / 2) / h;
+            media.style.transform = `translate3d(${nx * 8}px, ${ny * 6}px, 0) scale(1.01)`;
+        });
+        document.addEventListener('mouseleave', () => media.style.transform = '');
+    </script>
+</body>
+
+</html>
