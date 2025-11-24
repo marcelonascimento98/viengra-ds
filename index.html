@@ -344,9 +344,8 @@
         <div class="media-wrap">
             <!-- use video ou imagem fallback -->
             <video id="v" autoplay muted playsinline loop preload="auto">
-        <!-- se tiver um vídeo online, troque a src -->
-        <source src="" type="video/mp4">
-      </video>
+                <!-- sources serão injetados via JS -->
+            </video>
             <!-- fallback do screenshot/preview se o vídeo não existir -->
             <img class="fallback" src="/mnt/data/056103c5-33b4-4f97-9b78-6c61210b8597.png" alt="fallback">
 
@@ -377,28 +376,19 @@
             const logo = document.querySelector('#vinheta .logo');
             if (!logo) return;
 
-            // captura texto original e limpa
             const text = logo.textContent.trim();
             logo.textContent = '';
 
-            // divide em caracteres seguros (spread geralmente ok para acentos simples)
-            // para clusters complexos você poderia usar Intl.Segmenter (não necessário aqui)
             const chars = [...text];
 
-            // cria spans
-            chars.forEach((ch, i) => {
+            chars.forEach((ch) => {
                 const span = document.createElement('span');
                 span.className = 'char';
-                // preservar espaços visuais (não colapsar)
-                if (ch === ' ') {
-                    span.innerHTML = '&nbsp;';
-                } else {
-                    span.textContent = ch;
-                }
+                if (ch === ' ') span.innerHTML = '&nbsp;';
+                else span.textContent = ch;
                 logo.appendChild(span);
             });
 
-            // animação: revele cada span da esquerda para direita
             const spans = Array.from(logo.querySelectorAll('.char'));
             const baseDelay = 60; // ms entre caracteres
             const initialDelay = 120; // espera antes de começar (ms)
@@ -409,13 +399,12 @@
                     s.classList.add('in');
                 }, delay);
             });
-
-            // opcional: se quiser garantir que a vinheta só suma após a digitação terminar,
-            // podemos ajustar o tempo de remoção. Como no seu script original a vinheta some
-            // depois de 3000ms, vamos manter isso, mas você pode aumentar se quiser.
         })();
 
-        /* seu script de playlist e vinheta (mantive comportamento original de remover vinheta após 3s) */
+        /* PLAYLIST:
+           - A playlist original está abaixo; você pode alterar/remover/colar novos URLs.
+           - Para a lógica '3 por dia', pegamos 3 itens consecutivos a partir de (dia % playlist.length).
+        */
         const playlist = [
             "https://media.gettyimages.com/id/1490629202/pt/v%C3%ADdeo/epic-fail-of-a-girl-sitting-on-a-skateboard-skating-downhill-and-wipes-out-at-the-end-video.mp4?s=mp4-640x640-gi&k=20&c=3vT17EDxU8wYo4htngPEP8ctZtFMbsd8VhJhgx64-LQ=",
             "https:/www.pexels.com/download/video/6002473.mp4",
@@ -424,29 +413,56 @@
             "https://media.gettyimages.com/id/1424280922/pt/v%C3%ADdeo/this-is-what-happens-when-you-dont-pay-attention-to-whats-happening-in-front-of-you-epic-fail.mp4?s=mp4-640x640-gi&k=20&c=nEF4w8p9x8lKgvDTV00CSBMUPS-vpGhXuvAt7bpjAZg=",
             "https://media.gettyimages.com/id/1401338352/pt/v%C3%ADdeo/check-out-this-super-funny-video-of-a-woman-falling-right-into-the-water-after-failing-to-sit.mp4?s=mp4-640x640-gi&k=20&c=wVjXpnLpaiyUOAO0WhqJ_qgSnuoEQNY1ysi8zQTI82o=",
             "https://media.gettyimages.com/id/1469296576/pt/v%C3%ADdeo/girl-wearing-a-black-jacket-tries-to-run-and-jump-over-the-creek-but-she-doesnt-jump-far.mp4?s=mp4-640x640-gi&k=20&c=bScECcVBVzlWhGXVyW6dtL1hHreLVGYmnfUs9pv0FWI=",
-            "https://media.gettyimages.com/id/1471888630/pt/v%C3%ADdeo/when-this-kid-tries-out-his-new-present-he-ends-up-getting-bodied-by-a-tree-epic-fail.mp4?s=mp4-640x640-gi&k=20&c=7e5MUpokUHNpqexzii7Cq1VAwPViuIQfk_OFrzmRP8M=",
-
+            "https://media.gettyimages.com/id/1471888630/pt/v%C3%ADdeo/when-this-kid-tries-out-his-new-present-he-ends-up-getting-bodied-by-a-tree-epic-fail.mp4?s=mp4-640x640-gi&k=20&c=7e5MUpokUHNpqexzii7Cq1VAwPViuIQfk_OFrzmRP8M="
         ];
 
+        // UTIL: dia do ano (1..365/366)
         function dayOfYear(d = new Date()) {
             const start = new Date(d.getFullYear(), 0, 0);
             return Math.floor((d - start) / (1000 * 60 * 60 * 24));
         }
 
-        function loadDailyItem() {
-            const dia = dayOfYear();
-            const idx = playlist.length ? (dia % playlist.length) : 0;
-            const fonte = playlist[idx];
+        // UTIL: verifica se a fonte parece mp4
+        function isMp4(url) {
+            return /\.mp4(\?.*)?$/i.test(url);
+        }
 
+        // retorna os 3 itens do dia, começando em index = day % playlist.length
+        function getThreeForDay(dayIndex) {
+            const n = playlist.length;
+            if (n === 0) return [];
+            const start = dayIndex % n;
+            return [
+                playlist[start],
+                playlist[(start + 1) % n],
+                playlist[(start + 2) % n]
+            ];
+        }
+
+        // dado um Date, determina qual dos 3 itens usar com base em blocos de 5 minutos
+        // calcula: slot = floor((hora*60 + minuto) / 5) % 3
+        function pickIndexFromTime(now) {
+            const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
+            const slot = Math.floor(minutesSinceMidnight / 5) % 3;
+            return slot;
+        }
+
+        // atualiza o player com a fonte selecionada
+        function setPlayerSource(fonte) {
             const player = document.getElementById('v');
-            // limpa fontes anteriores
-            player.innerHTML = '';
 
+            // remove fallback image se existir
             const existingImg = document.querySelector('.media-wrap img.fallback');
             if (existingImg) existingImg.remove();
 
-            function isMp4(url) {
-                return /\.mp4(\?.*)?$/i.test(url);
+            // limpa fontes anteriores
+            player.pause();
+            player.innerHTML = '';
+
+            if (!fonte) {
+                // sem fonte, mostrar fallback
+                showFallback();
+                return;
             }
 
             if (isMp4(fonte)) {
@@ -454,22 +470,95 @@
                 src.src = fonte;
                 src.type = "video/mp4";
                 player.appendChild(src);
-
-                // garante que o vídeo esteja visível
                 player.style.display = '';
-                player.play().catch(err => console.warn("Falha no autoplay:", err));
+                // tentar autoplay
+                player.load();
+                player.play().catch(err => {
+                    console.warn("Falha no autoplay:", err);
+                });
             } else {
-                player.style.display = "none";
-                const img = document.createElement("img");
-                img.className = "fallback";
-                img.src = fonte;
-                document.querySelector('.media-wrap').appendChild(img);
+                // se não for mp4, tratamos como imagem (fallback)
+                showFallback(fonte);
             }
         }
 
-        // CARREGA O VÍDEO NORMALMENTE ao carregar a página
+        function showFallback(imgUrl) {
+            const player = document.getElementById('v');
+            player.style.display = 'none';
+            const wrap = document.querySelector('.media-wrap');
+            const existing = wrap.querySelector('img.fallback');
+            if (existing) existing.remove();
+            const img = document.createElement('img');
+            img.className = 'fallback';
+            img.alt = 'fallback';
+            // se foi passada uma URL de imagem, usa; senão usa a local já presente
+            img.src = imgUrl || '/mnt/data/056103c5-33b4-4f97-9b78-6c61210b8597.png';
+            wrap.appendChild(img);
+        }
+
+        // Função principal: escolhe e aplica a fonte correta com base no dia e no bloco de 5 minutos
+        function applyDailyRotation(now = new Date()) {
+            const day = dayOfYear(now);
+            const three = getThreeForDay(day);
+            if (three.length === 0) {
+                console.warn('Playlist vazia');
+                showFallback();
+                return;
+            }
+            const slot = pickIndexFromTime(now); // 0,1 ou 2
+            const chosen = three[slot];
+            setPlayerSource(chosen);
+
+            // você pode logar para debugging:
+            // console.log('Dia', day, 'slot', slot, 'src', chosen);
+        }
+
+        // agenda atualizações: alinhando ao próximo múltiplo de 5 minutos e depois repetindo de 5 em 5 minutos
+        let rotationIntervalId = null;
+        let rotationTimeoutId = null;
+
+        function scheduleRotation() {
+            // limpa timers anteriores
+            if (rotationIntervalId) {
+                clearInterval(rotationIntervalId);
+                rotationIntervalId = null;
+            }
+            if (rotationTimeoutId) {
+                clearTimeout(rotationTimeoutId);
+                rotationTimeoutId = null;
+            }
+
+            const now = new Date();
+            // ms até o próximo limite de 5 minutos:
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const ms = now.getMilliseconds();
+            const minutesMod5 = minutes % 5;
+            const minutesToNext = (minutesMod5 === 0 && seconds === 0 && ms === 0) ? 0 : (5 - minutesMod5);
+            const msToNext = minutesToNext * 60 * 1000 - (seconds * 1000 + ms);
+
+            // garantia mínima: se negativo, faz 0
+            const initialDelay = Math.max(0, msToNext);
+
+            // primeira aplicação imediata (assim que abrir) para mostrar o item atual
+            applyDailyRotation(now);
+
+            // agendamento: espera até o próximo múltiplo de 5 minutos, então configura intervalo de 5min
+            rotationTimeoutId = setTimeout(() => {
+                // atualizar no limite
+                applyDailyRotation(new Date());
+
+                // e então repetir a cada 5 minutos
+                rotationIntervalId = setInterval(() => {
+                    applyDailyRotation(new Date());
+                }, 5 * 60 * 1000); // 5 minutos
+            }, initialDelay);
+        }
+
+        // CARREGA o vídeo assim que a página abre e agenda rotações
         window.addEventListener("load", () => {
-            loadDailyItem();
+            // aplicar agora e agendar
+            scheduleRotation();
 
             // VINHETA: usa comportamento de saída (remove depois de 3s + 1s)
             const v = document.getElementById('vinheta');
@@ -477,6 +566,14 @@
                 v.classList.add('vinhetaOut');
                 setTimeout(() => v.remove(), 1000); // remove da tela após animação
             }, 3000);
+        });
+
+        // Se o usuário ficar em outra aba ou voltar, re-sincronizamos
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // re-schedule para evitar dessincronização
+                scheduleRotation();
+            }
         });
 
         // Parallax sutil ao mover o mouse (mantido)
