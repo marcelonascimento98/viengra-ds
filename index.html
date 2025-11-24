@@ -373,8 +373,8 @@
 
     <script>
         /* -------------------------------------------------------------
-                   ANIMAÇÃO DA VINHETA (mantido)
-                ------------------------------------------------------------- */
+           ANIMAÇÃO DA VINHETA (mantido)
+        ------------------------------------------------------------- */
         (function() {
             const logo = document.querySelector('#vinheta .logo');
             if (!logo) return;
@@ -424,71 +424,23 @@
         ------------------------------------------------------------- */
         function getDailyVideos() {
             const dia = dayOfYear();
-            const totalBlocos = Math.floor(playlist.length / 3);
-            if (totalBlocos <= 0) {
-                // fallback: se menos de 3 vídeos, retorna os disponíveis (evita crash)
-                return playlist.slice(0, Math.min(3, playlist.length));
-            }
-            // bloco do dia (0..totalBlocos-1)
+            const totalBlocos = Math.floor(playlist.length / 3) || 1;
             const bloco = dia % totalBlocos;
             const start = bloco * 3;
-            return [
-                playlist[start],
-                playlist[start + 1],
-                playlist[start + 2]
-            ];
+            const arr = [];
+            for (let i = 0; i < 3; i++) {
+                const idx = (start + i) % playlist.length;
+                arr.push(playlist[idx]);
+            }
+            return arr;
         }
 
         let todayVideos = getDailyVideos();
-        let currentVideoIndex = 0; // índice local durante a sessão
+        let currentVideoIndex = 0;
+
 
         /* -------------------------------------------------------------
-           Funções utilitárias de load/play
-        ------------------------------------------------------------- */
-        function isMp4(url) {
-            return /\.mp4(\?.*)?$/i.test(url);
-        }
-
-        function loadVideo(url) {
-            const player = document.getElementById('v');
-            const wrap = document.querySelector('.media-wrap');
-
-            // Limpa fontes/elementos anteriores
-            try {
-                player.pause();
-            } catch (e) {}
-            player.innerHTML = "";
-            const existingImg = wrap.querySelector("img.fallback");
-            if (existingImg) existingImg.remove();
-
-            if (!url) return console.warn('Nenhuma URL para carregar');
-
-            if (isMp4(url)) {
-                const src = document.createElement("source");
-                src.src = url;
-                src.type = "video/mp4";
-                player.style.display = "";
-                player.appendChild(src);
-
-                // força reload do elemento <video>
-                player.load();
-                player.play().catch(err => console.warn("Autoplay bloqueado:", err));
-                console.info('Carregando vídeo:', url);
-            } else {
-                player.style.display = "none";
-                const img = document.createElement("img");
-                img.className = "fallback";
-                img.src = url;
-                wrap.appendChild(img);
-                console.info('Carregando imagem fallback:', url);
-            }
-        }
-
-        /* -------------------------------------------------------------
-           Persistência entre reloads:
-           Guardamos em localStorage uma chave por dia para saber o último
-           índice mostrado. Assim a cada load avançamos para o próximo.
-           Chave: "lastShownIndex_<YYYY-MM-DD>"
+           UTIL: storage key por data
         ------------------------------------------------------------- */
         function storageKeyForToday(d = new Date()) {
             const y = d.getFullYear();
@@ -497,48 +449,132 @@
             return `lastShownIndex_${y}-${m}-${day}`;
         }
 
+        /* -------------------------------------------------------------
+           Ao carregar: le o último índice salvo e devolve o próximo
+           (persistimos a escolha para que reloads sucessivos avancem)
+        ------------------------------------------------------------- */
         function getNextIndexOnLoad() {
             const key = storageKeyForToday();
             let last = localStorage.getItem(key);
-            if (last === null) {
-                // se ainda não há registro hoje, começamos em -1 para que o "próximo" seja 0
-                last = -1;
-            } else {
+            if (last === null) last = -1;
+            else {
                 last = parseInt(last, 10);
                 if (isNaN(last)) last = -1;
             }
-            // próximo índice (avança a cada reload)
             const next = (last + 1) % Math.max(1, todayVideos.length);
-            // salva próximo como último (pois já vamos mostrar ele agora)
             localStorage.setItem(key, String(next));
-            console.info('lastShownIndex (antes):', last, '-> next:', next, 'key:', key);
+            console.info('[video] getNextIndexOnLoad ->', next, '(key:', key, ')');
             return next;
         }
 
-        /* troca para o próximo dos 3 vídeos (durante sessão) */
-        function swapToNext() {
-            currentVideoIndex = (currentVideoIndex + 1) % Math.max(1, todayVideos.length);
+        /* -------------------------------------------------------------
+           Força cache-bust na url para evitar retenção agressiva de cache
+        ------------------------------------------------------------- */
+        function addCacheBust(url) {
+            if (!url) return url;
+            const sep = url.includes('?') ? '&' : '?';
+            return url + sep + 'cb=' + Date.now();
+        }
+
+        /* -------------------------------------------------------------
+           LOAD / PLAY
+        ------------------------------------------------------------- */
+        function isMp4(url) {
+            return /\.mp4(\?.*)?$/i.test(url);
+        }
+
+        function loadVideo(url) {
+            const player = document.getElementById('v');
+            const wrap = document.querySelector('.media-wrap');
+            if (!player) return;
+            // limpa anteriores
+            try {
+                player.pause();
+            } catch (e) {}
+            player.innerHTML = "";
+            const existingImg = wrap.querySelector("img.fallback");
+            if (existingImg) existingImg.remove();
+
+            if (!url) {
+                console.warn('[video] URL vazia');
+                return;
+            }
+
+            if (isMp4(url)) {
+                const src = document.createElement("source");
+                src.src = addCacheBust(url);
+                src.type = "video/mp4";
+                player.style.display = "";
+                player.appendChild(src);
+                // necessário para que o browser recarregue o novo source
+                player.load();
+                player.play().catch(err => console.warn("Autoplay bloqueado:", err));
+                console.info('[video] carregado (mp4):', url);
+            } else {
+                player.style.display = "none";
+                const img = document.createElement("img");
+                img.className = "fallback";
+                img.src = addCacheBust(url);
+                wrap.appendChild(img);
+                console.info('[video] carregado (fallback):', url);
+            }
+        }
+
+        /* -------------------------------------------------------------
+           swap interno (durante sessão) e atualização do localStorage
+        ------------------------------------------------------------- */
+        function swapToNext(updateStorage = true) {
+            if (!todayVideos || todayVideos.length === 0) return;
+            currentVideoIndex = (currentVideoIndex + 1) % todayVideos.length;
+            loadVideo(todayVideos[currentVideoIndex]);
+            if (updateStorage) {
+                localStorage.setItem(storageKeyForToday(), String(currentVideoIndex));
+            }
+        }
+
+        /* -------------------------------------------------------------
+           Ao visibilizar / foco / pageshow: avançar para o próximo vídeo
+           (útil para exibidores que "reabrem" a mesma página em loop)
+        ------------------------------------------------------------- */
+        function handleWakeAdvance() {
+            // re-obtem vídeos do dia (caso playlist tenha mudado)
+            todayVideos = getDailyVideos();
+
+            // pega próximo índice (com persistência): getNextIndexOnLoad já salva
+            const next = getNextIndexOnLoad();
+            currentVideoIndex = next;
             loadVideo(todayVideos[currentVideoIndex]);
         }
 
+        // listeners que disparam quando a página volta a ficar visível/ativa
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // curto delay para permitir que exibidor finalize swap interno
+                setTimeout(handleWakeAdvance, 150);
+            }
+        });
+        window.addEventListener('pageshow', (ev) => {
+            // pageshow.dispatch quando a página é mostrada de novo (ex.: bfcache)
+            setTimeout(handleWakeAdvance, 150);
+        });
+        window.addEventListener('focus', () => {
+            setTimeout(handleWakeAdvance, 150);
+        });
 
         /* -------------------------------------------------------------
-           INÍCIO DA PÁGINA
-           - Ao carregar: escolhe o índice com base no lastShownIndex do dia
-           - Carrega esse vídeo imediatamente
-           - (Opcional) configura setInterval para trocar a cada 5min
+           INÍCIO: load inicial + vinheta + intervalos
         ------------------------------------------------------------- */
         window.addEventListener("load", () => {
-            // atualiza lista de vídeos do dia (caso playlist mude)
+            // atualiza bloco do dia
             todayVideos = getDailyVideos();
 
-            // calcula o índice inicial de exibição com persistência entre reloads
+            // índice inicial com base no último salvo (avança a cada reload)
             currentVideoIndex = getNextIndexOnLoad();
 
-            // carrega o vídeo inicial (baseado no índice persistido)
+            // carrega
             loadVideo(todayVideos[currentVideoIndex]);
 
-            // VINHETA SOME APÓS 3s
+            // vinheta some apos 3s
             const v = document.getElementById('vinheta');
             setTimeout(() => {
                 if (v) {
@@ -547,18 +583,11 @@
                 }
             }, 3000);
 
-            // Troca de vídeo a cada 5 minutos (se quiser apenas trocar por reload, comente a linha abaixo)
+            // Troca a cada 5 minutos (se quiser só troca por reload, comente a linha abaixo)
             const FIVE_MIN = 5 * 60 * 1000;
             setInterval(() => {
-                swapToNext();
-                // atualiza também o localStorage para refletir a troca caso queira que
-                // reload futuros comecem a partir desse novo índice:
-                const key = storageKeyForToday();
-                localStorage.setItem(key, String(currentVideoIndex));
+                swapToNext(true); // atualiza localStorage também
             }, FIVE_MIN);
-
-            // debug: no caso do seu player que recarrega a cada 12s, a cada reload
-            // o código acima avança para o próximo vídeo do bloco do dia.
         });
 
 
@@ -577,3 +606,6 @@
             if (media) media.style.transform = '';
         });
     </script>
+</body>
+
+</html>
