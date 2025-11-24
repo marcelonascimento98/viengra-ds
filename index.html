@@ -372,50 +372,29 @@
     </div>
 
     <script>
-        // typing effect: transforma o texto da .logo em spans e aplica reveal letra a letra
+        /* -------------------------------------------------------------
+                   ANIMAÇÃO DA VINHETA (mantido)
+                ------------------------------------------------------------- */
         (function() {
             const logo = document.querySelector('#vinheta .logo');
             if (!logo) return;
-
-            // captura texto original e limpa
             const text = logo.textContent.trim();
             logo.textContent = '';
-
-            // divide em caracteres seguros (spread geralmente ok para acentos simples)
-            // para clusters complexos você poderia usar Intl.Segmenter (não necessário aqui)
             const chars = [...text];
-
-            // cria spans
-            chars.forEach((ch, i) => {
+            chars.forEach(ch => {
                 const span = document.createElement('span');
                 span.className = 'char';
-                // preservar espaços visuais (não colapsar)
-                if (ch === ' ') {
-                    span.innerHTML = '&nbsp;';
-                } else {
-                    span.textContent = ch;
-                }
+                span.innerHTML = ch === ' ' ? '&nbsp;' : ch;
                 logo.appendChild(span);
             });
-
-            // animação: revele cada span da esquerda para direita
             const spans = Array.from(logo.querySelectorAll('.char'));
-            const baseDelay = 60; // ms entre caracteres
-            const initialDelay = 120; // espera antes de começar (ms)
-
-            spans.forEach((s, idx) => {
-                const delay = initialDelay + idx * baseDelay;
-                setTimeout(() => {
-                    s.classList.add('in');
-                }, delay);
-            });
-
-            // opcional: se quiser garantir que a vinheta só suma após a digitação terminar,
-            // podemos ajustar o tempo de remoção. Como no seu script original a vinheta some
-            // depois de 3000ms, vamos manter isso, mas você pode aumentar se quiser.
+            spans.forEach((s, i) => setTimeout(() => s.classList.add('in'), 120 + i * 60));
         })();
 
-        /* seu script de playlist e vinheta (mantive comportamento original de remover vinheta após 3s) */
+
+        /* -------------------------------------------------------------
+           PLAYLIST (pode adicionar mais vídeos; idealmente múltiplos de 3)
+        ------------------------------------------------------------- */
         const playlist = [
             "https://media.gettyimages.com/id/1490629202/pt/v%C3%ADdeo/epic-fail-of-a-girl-sitting-on-a-skateboard-skating-downhill-and-wipes-out-at-the-end-video.mp4?s=mp4-640x640-gi&k=20&c=3vT17EDxU8wYo4htngPEP8ctZtFMbsd8VhJhgx64-LQ=",
             "https://media.gettyimages.com/id/1478375183/pt/v%C3%ADdeo/shirtless-guy-wearing-black-shorts-tries-to-jump-into-pool-by-diving-from-ladder-but-it.mp4?s=mp4-640x640-gi&k=20&c=EAjP_yYvBNJwzsmauovEfbRYag7wITZOjQ1ODx5Ayoc=",
@@ -426,68 +405,175 @@
 
         ];
 
+
+        /* -------------------------------------------------------------
+           RETORNA DIA DO ANO (1 a 365)
+        ------------------------------------------------------------- */
         function dayOfYear(d = new Date()) {
             const start = new Date(d.getFullYear(), 0, 0);
-            return Math.floor((d - start) / (1000 * 60 * 60 * 24));
+            return Math.floor((d - start) / 86400000);
         }
 
-        function loadDailyItem() {
+
+        /* -------------------------------------------------------------
+           SELECIONA 3 VÍDEOS POR DIA (blocos fixos)
+           Dia 1 -> vídeos 0,1,2
+           Dia 2 -> vídeos 3,4,5
+           Dia 3 -> vídeos 6,7,8
+           Dia 4 -> reinicia
+        ------------------------------------------------------------- */
+        function getDailyVideos() {
             const dia = dayOfYear();
-            const idx = playlist.length ? (dia % playlist.length) : 0;
-            const fonte = playlist[idx];
+            const totalBlocos = Math.floor(playlist.length / 3);
+            if (totalBlocos <= 0) {
+                // fallback: se menos de 3 vídeos, retorna os disponíveis (evita crash)
+                return playlist.slice(0, Math.min(3, playlist.length));
+            }
+            // bloco do dia (0..totalBlocos-1)
+            const bloco = dia % totalBlocos;
+            const start = bloco * 3;
+            return [
+                playlist[start],
+                playlist[start + 1],
+                playlist[start + 2]
+            ];
+        }
 
+        let todayVideos = getDailyVideos();
+        let currentVideoIndex = 0; // índice local durante a sessão
+
+        /* -------------------------------------------------------------
+           Funções utilitárias de load/play
+        ------------------------------------------------------------- */
+        function isMp4(url) {
+            return /\.mp4(\?.*)?$/i.test(url);
+        }
+
+        function loadVideo(url) {
             const player = document.getElementById('v');
-            // limpa fontes anteriores
-            player.innerHTML = '';
+            const wrap = document.querySelector('.media-wrap');
 
-            const existingImg = document.querySelector('.media-wrap img.fallback');
+            // Limpa fontes/elementos anteriores
+            try {
+                player.pause();
+            } catch (e) {}
+            player.innerHTML = "";
+            const existingImg = wrap.querySelector("img.fallback");
             if (existingImg) existingImg.remove();
 
-            function isMp4(url) {
-                return /\.mp4(\?.*)?$/i.test(url);
-            }
+            if (!url) return console.warn('Nenhuma URL para carregar');
 
-            if (isMp4(fonte)) {
-                const src = document.createElement('source');
-                src.src = fonte;
+            if (isMp4(url)) {
+                const src = document.createElement("source");
+                src.src = url;
                 src.type = "video/mp4";
+                player.style.display = "";
                 player.appendChild(src);
 
-                // garante que o vídeo esteja visível
-                player.style.display = '';
-                player.play().catch(err => console.warn("Falha no autoplay:", err));
+                // força reload do elemento <video>
+                player.load();
+                player.play().catch(err => console.warn("Autoplay bloqueado:", err));
+                console.info('Carregando vídeo:', url);
             } else {
                 player.style.display = "none";
                 const img = document.createElement("img");
                 img.className = "fallback";
-                img.src = fonte;
-                document.querySelector('.media-wrap').appendChild(img);
+                img.src = url;
+                wrap.appendChild(img);
+                console.info('Carregando imagem fallback:', url);
             }
         }
 
-        // CARREGA O VÍDEO NORMALMENTE ao carregar a página
-        window.addEventListener("load", () => {
-            loadDailyItem();
+        /* -------------------------------------------------------------
+           Persistência entre reloads:
+           Guardamos em localStorage uma chave por dia para saber o último
+           índice mostrado. Assim a cada load avançamos para o próximo.
+           Chave: "lastShownIndex_<YYYY-MM-DD>"
+        ------------------------------------------------------------- */
+        function storageKeyForToday(d = new Date()) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `lastShownIndex_${y}-${m}-${day}`;
+        }
 
-            // VINHETA: usa comportamento de saída (remove depois de 3s + 1s)
+        function getNextIndexOnLoad() {
+            const key = storageKeyForToday();
+            let last = localStorage.getItem(key);
+            if (last === null) {
+                // se ainda não há registro hoje, começamos em -1 para que o "próximo" seja 0
+                last = -1;
+            } else {
+                last = parseInt(last, 10);
+                if (isNaN(last)) last = -1;
+            }
+            // próximo índice (avança a cada reload)
+            const next = (last + 1) % Math.max(1, todayVideos.length);
+            // salva próximo como último (pois já vamos mostrar ele agora)
+            localStorage.setItem(key, String(next));
+            console.info('lastShownIndex (antes):', last, '-> next:', next, 'key:', key);
+            return next;
+        }
+
+        /* troca para o próximo dos 3 vídeos (durante sessão) */
+        function swapToNext() {
+            currentVideoIndex = (currentVideoIndex + 1) % Math.max(1, todayVideos.length);
+            loadVideo(todayVideos[currentVideoIndex]);
+        }
+
+
+        /* -------------------------------------------------------------
+           INÍCIO DA PÁGINA
+           - Ao carregar: escolhe o índice com base no lastShownIndex do dia
+           - Carrega esse vídeo imediatamente
+           - (Opcional) configura setInterval para trocar a cada 5min
+        ------------------------------------------------------------- */
+        window.addEventListener("load", () => {
+            // atualiza lista de vídeos do dia (caso playlist mude)
+            todayVideos = getDailyVideos();
+
+            // calcula o índice inicial de exibição com persistência entre reloads
+            currentVideoIndex = getNextIndexOnLoad();
+
+            // carrega o vídeo inicial (baseado no índice persistido)
+            loadVideo(todayVideos[currentVideoIndex]);
+
+            // VINHETA SOME APÓS 3s
             const v = document.getElementById('vinheta');
             setTimeout(() => {
-                v.classList.add('vinhetaOut');
-                setTimeout(() => v.remove(), 1000); // remove da tela após animação
+                if (v) {
+                    v.classList.add('vinhetaOut');
+                    setTimeout(() => v.remove(), 1000);
+                }
             }, 3000);
+
+            // Troca de vídeo a cada 5 minutos (se quiser apenas trocar por reload, comente a linha abaixo)
+            const FIVE_MIN = 5 * 60 * 1000;
+            setInterval(() => {
+                swapToNext();
+                // atualiza também o localStorage para refletir a troca caso queira que
+                // reload futuros comecem a partir desse novo índice:
+                const key = storageKeyForToday();
+                localStorage.setItem(key, String(currentVideoIndex));
+            }, FIVE_MIN);
+
+            // debug: no caso do seu player que recarrega a cada 12s, a cada reload
+            // o código acima avança para o próximo vídeo do bloco do dia.
         });
 
-        // Parallax sutil ao mover o mouse (mantido)
+
+        /* -------------------------------------------------------------
+           PARALLAX (mantido)
+        ------------------------------------------------------------- */
         const media = document.querySelector('.media-wrap');
         document.addEventListener('mousemove', (e) => {
             const w = window.innerWidth,
                 h = window.innerHeight;
             const nx = (e.clientX - w / 2) / w;
             const ny = (e.clientY - h / 2) / h;
-            media.style.transform = `translate3d(${nx * 8}px, ${ny * 6}px, 0) scale(1.01)`;
+            if (media) media.style.transform = `translate3d(${nx * 8}px, ${ny * 6}px, 0) scale(1.01)`;
         });
-        document.addEventListener('mouseleave', () => media.style.transform = '');
+        document.addEventListener('mouseleave', () => {
+            if (media) media.style.transform = '';
+        });
     </script>
-</body>
-
-</html>
